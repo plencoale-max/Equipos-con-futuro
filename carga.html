@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App de carga — Equipos con futuro · 333</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --azul: #1F6DB1;
+    --naranja: #E87722;
+    --gris: #53565A;
+    --verde: #8CC63F;
+    --azul-claro: #D1E3F6;
+    --blanco: #FFFFFF;
+    --rojo: #DC3545;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+    color: var(--gris);
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .header {
+    background: var(--blanco);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(31, 109, 177, 0.08);
+    text-align: center;
+  }
+  .header h1 {
+    color: var(--azul);
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .header .subtitle {
+    color: var(--gris);
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 4px;
+  }
+  .estado-conexion {
+    font-size: 10px;
+    margin-top: 6px;
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: var(--verde);
+    color: white;
+    font-weight: 600;
+  }
+  .estado-conexion.offline { background: var(--rojo); }
+
+  .pantalla {
+    background: var(--blanco);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .pantalla.hide { display: none; }
+
+  .label-titulo {
+    font-size: 13px;
+    color: var(--azul);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .input-grupo {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .input-grupo input {
+    flex: 1;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .input-grupo input:focus {
+    outline: none;
+    border-color: var(--azul);
+  }
+
+  .selector-persona {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 4px;
+    margin-bottom: 16px;
+  }
+  .persona-chip {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #f5f7fa;
+    border: 2px solid transparent;
+    cursor: pointer;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gris);
+    transition: all 0.2s;
+    position: relative;
+  }
+  .persona-chip:hover { background: var(--azul-claro); }
+  .persona-chip.completado {
+    background: #f0f0f0;
+    color: #aaa;
+  }
+  .persona-chip.completado::after {
+    content: '✓';
+    position: absolute;
+    top: 4px; right: 6px;
+    color: var(--verde);
+    font-weight: 700;
+  }
+  .perfil-badge {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    margin-right: 4px;
+  }
+
+  .form-section { margin-bottom: 18px; }
+  .form-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .form-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .form-icon.pasado { background: var(--naranja); }
+  .form-icon.presente { background: var(--azul); }
+  .form-icon.futuro { background: var(--verde); }
+  .form-label {
+    font-size: 13px;
+    color: var(--gris);
+    font-weight: 600;
+  }
+  .form-hint {
+    font-size: 11px;
+    color: var(--gris);
+    opacity: 0.6;
+    margin-bottom: 6px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--azul);
+  }
+  textarea.pasado-focus:focus { border-color: var(--naranja); }
+  textarea.futuro-focus:focus { border-color: var(--verde); }
+  .char-counter {
+    font-size: 10px;
+    color: var(--gris);
+    opacity: 0.6;
+    text-align: right;
+    margin-top: 4px;
+  }
+  .char-counter.warn { color: var(--rojo); opacity: 1; }
+
+  .botones {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .btn-primary {
+    background: var(--azul);
+    color: white;
+  }
+  .btn-primary:hover { background: #185a94; }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary {
+    background: #f0f0f0;
+    color: var(--gris);
+  }
+  .btn-secondary:hover { background: #e0e0e0; }
+
+  .estado-actual {
+    background: var(--azul-claro);
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: var(--azul);
+  }
+  .estado-actual strong { color: var(--azul); }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--verde);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-8px);
+  }
+  .toast.error { background: var(--rojo); }
+
+  .instrucciones {
+    background: #fff8f0;
+    border-left: 3px solid var(--naranja);
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--gris);
+    line-height: 1.5;
+  }
+  .instrucciones strong { color: var(--naranja); }
+
+  .progreso {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    font-size: 11px;
+    color: var(--gris);
+  }
+  .progreso-bar {
+    flex: 1;
+    height: 6px;
+    background: #f0f0f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0 12px;
+  }
+  .progreso-fill {
+    height: 100%;
+    background: var(--verde);
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+
+  .preview {
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 10px;
+    margin-top: 16px;
+    border: 1px dashed var(--azul);
+  }
+  .preview-title {
+    font-size: 11px;
+    color: var(--azul);
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .preview-item {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .preview-item strong { color: var(--azul); }
+</style>
+</head>
+<body>
+
+  <div class="container">
+
+    <div class="header">
+      <h1>📝 App de carga · Equipos con futuro</h1>
+      <div class="subtitle">Sesión Team Building · Grupos de 3-4 personas</div>
+      <div class="estado-conexion" id="estado-conexion">CONECTANDO...</div>
+    </div>
+
+    <div class="pantalla" id="pantalla-grupo">
+      <div class="instrucciones">
+        <strong>Hola escriba de grupo 👋</strong><br>
+        Sos quien va a cargar las historias de tu grupo. Ingresá el código de tu grupo (lo da Alejo al inicio) y empezamos.
+      </div>
+
+      <div class="label-titulo">Código de grupo</div>
+      <div class="input-grupo">
+        <input type="text" id="codigo-grupo" placeholder="Ej: G1, G2, G3..." maxlength="5" />
+      </div>
+
+      <div class="label-titulo">Tu nombre (escriba inicial)</div>
+      <div class="input-grupo">
+        <input type="text" id="nombre-escriba" placeholder="Ej: Marina, Pipe..." />
+      </div>
+
+      <button class="btn btn-primary" onclick="entrarGrupo()">Entrar al grupo</button>
+    </div>
+
+    <div class="pantalla hide" id="pantalla-seleccion">
+      <div class="estado-actual">
+        Grupo <strong id="grupo-actual"></strong> · Escriba: <strong id="escriba-actual"></strong>
+      </div>
+
+      <div class="progreso">
+        <span>Cargados</span>
+        <div class="progreso-bar"><div class="progreso-fill" id="progreso-fill"></div></div>
+        <span id="progreso-texto">0 / 33</span>
+      </div>
+
+      <div class="label-titulo">¿De quién vamos a cargar la historia?</div>
+      <div class="form-hint" style="margin-bottom: 14px;">Tocá a la persona que está contando ahora.</div>
+
+      <div class="selector-persona" id="selector-persona"></div>
+
+      <button class="btn btn-secondary" onclick="volverInicio()">← Cambiar grupo</button>
+    </div>
+
+    <div class="pantalla hide" id="pantalla-form">
+      <div class="estado-actual">
+        Cargando historia de <strong id="persona-actual"></strong> · Grupo <strong id="grupo-form"></strong>
+      </div>
+
+      <div class="instrucciones">
+        <strong>Recordá:</strong> escuchá primero, escribí frases cortas y, antes de enviar, leélas en voz alta para que tu compañero/a confirme que quedaron bien.
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-header">
+          <div class="form-icon pasado">◐</div>
+          <div>
+            <div class="form-label">Quién era</div>
+            <div class="form-hint">La foto de hace unos años, el momento que recuerda.</div>
+          </div>
+        </div>
+        <textarea id="campo-pasado" class="pasado-focus" maxlength="300" oninput="contarChars('pasado')"
+          placeholder="Ej: Recién recibida, viviendo sola por primera vez, sin saber qué quería ser..."></textarea>
+        <div class="char-counter" id="counter-pasado">0 / 300</div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-header">
+          <div class="form-icon presente">●</div>
+          <div>
+            <div class="form-label">Qué la/lo trajo hasta acá</div>
+            <div class="form-hint">El recorrido, los hitos, las decisiones clave.</div>
+          </div>
+        </div>
+        <textarea id="campo-presente" maxlength="300" oninput="contarChars('presente')"
+          placeholder="Ej: Una mudanza, un mentor, una decisión arriesgada, el ingreso a 333..."></textarea>
+        <div class="char-counter" id="counter-presente">0 / 300</div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-header">
+          <div class="form-icon futuro">◑</div>
+          <div>
+            <div class="form-label">Qué necesita para llegar donde quiere estar</div>
+            <div class="form-hint">Concreto: del equipo, del líder, de la organización.</div>
+          </div>
+        </div>
+        <textarea id="campo-futuro" class="futuro-focus" maxlength="300" oninput="contarChars('futuro')"
+          placeholder="Ej: Más autonomía, mentoría con alguien que ya pasó por esto, capacitación en X..."></textarea>
+        <div class="char-counter" id="counter-futuro">0 / 300</div>
+      </div>
+
+      <div class="preview" id="preview" style="display: none;">
+        <div class="preview-title">📖 Vista previa — leé esto en voz alta antes de enviar</div>
+        <div class="preview-item"><strong>Quién era:</strong> <span id="pv-pasado"></span></div>
+        <div class="preview-item"><strong>Qué la/lo trajo:</strong> <span id="pv-presente"></span></div>
+        <div class="preview-item"><strong>Qué necesita:</strong> <span id="pv-futuro"></span></div>
+      </div>
+
+      <div class="botones">
+        <button class="btn btn-secondary" onclick="volverSeleccion()">← Cambiar persona</button>
+        <button class="btn btn-primary" onclick="verPreview()" id="btn-preview">Ver vista previa</button>
+        <button class="btn btn-primary" onclick="enviarHistoria()" id="btn-enviar" style="display:none;">✓ Enviar al dashboard</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // ===== CONFIGURACIÓN SUPABASE =====
+  const SUPABASE_URL = 'https://bwirfscpncqnzpbuflax.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_AS9nbNcBc2vzfUt4hx6QgA_G8az2d_Y';
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const equipo = [
+    { nombre: "Alejo", perfil: "Promotor", color: "#E91E63", inicial: "P" },
+    { nombre: "Nazly", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Ana", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Nicole", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Patricia", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Flor", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Susana", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Coqui", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Moni S.", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "David", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Marina", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Jonatas", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Carlos", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Natllely", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Soco", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Yoli", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Dani", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Pipe", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Juli", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Solange", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Benja", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Bruno", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Moni M.", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Clemen", perfil: "Facilitador", color: "#7E57C2", inicial: "F" },
+    { nombre: "Rei", perfil: "Analítico", color: "#29B6F6", inicial: "A" },
+    { nombre: "Adri", perfil: "Controlador", color: "#8CC63F", inicial: "C" },
+    { nombre: "Laíza", perfil: "Controlador", color: "#8CC63F", inicial: "C" },
+    { nombre: "Roberta", perfil: "Controlador", color: "#8CC63F", inicial: "C" },
+    { nombre: "Juanpa", perfil: "Controlador", color: "#8CC63F", inicial: "C" },
+    { nombre: "Nazarena", perfil: "Pendiente", color: "#9E9E9E", inicial: "?" },
+    { nombre: "Lucas", perfil: "Pendiente", color: "#9E9E9E", inicial: "?" },
+    { nombre: "Luciano", perfil: "Pendiente", color: "#9E9E9E", inicial: "?" },
+    { nombre: "Tamara", perfil: "Pendiente", color: "#9E9E9E", inicial: "?" }
+  ];
+
+  let grupoActual = '';
+  let escribaActual = '';
+  let personaSeleccionada = null;
+  let cargas = {};
+
+  async function cargarHistorias() {
+    try {
+      const { data, error } = await supabaseClient
+        .from('historias')
+        .select('nombre, grupo, escriba, pasado, presente, futuro');
+      if (error) throw error;
+      cargas = {};
+      (data || []).forEach(r => { cargas[r.nombre] = r; });
+      document.getElementById('estado-conexion').textContent = '● CONECTADO';
+      document.getElementById('estado-conexion').classList.remove('offline');
+    } catch (e) {
+      console.error('Error cargando:', e);
+      document.getElementById('estado-conexion').textContent = '● SIN CONEXIÓN';
+      document.getElementById('estado-conexion').classList.add('offline');
+    }
+  }
+
+  function entrarGrupo() {
+    const codigo = document.getElementById('codigo-grupo').value.trim().toUpperCase();
+    const nombre = document.getElementById('nombre-escriba').value.trim();
+    if (!codigo || !nombre) {
+      alert('Completá el código de grupo y tu nombre.');
+      return;
+    }
+    grupoActual = codigo;
+    escribaActual = nombre;
+    document.getElementById('grupo-actual').textContent = codigo;
+    document.getElementById('escriba-actual').textContent = nombre;
+    document.getElementById('pantalla-grupo').classList.add('hide');
+    document.getElementById('pantalla-seleccion').classList.remove('hide');
+    renderSelectorPersona();
+  }
+
+  function volverInicio() {
+    document.getElementById('pantalla-seleccion').classList.add('hide');
+    document.getElementById('pantalla-grupo').classList.remove('hide');
+  }
+
+  function volverSeleccion() {
+    document.getElementById('pantalla-form').classList.add('hide');
+    document.getElementById('pantalla-seleccion').classList.remove('hide');
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('btn-preview').style.display = 'block';
+    document.getElementById('btn-enviar').style.display = 'none';
+    cargarHistorias().then(() => renderSelectorPersona());
+  }
+
+  function renderSelectorPersona() {
+    const selector = document.getElementById('selector-persona');
+    selector.innerHTML = '';
+
+    let completados = Object.keys(cargas).length;
+    document.getElementById('progreso-texto').textContent = `${completados} / ${equipo.length}`;
+    document.getElementById('progreso-fill').style.width = `${(completados / equipo.length) * 100}%`;
+
+    equipo.forEach(p => {
+      const chip = document.createElement('div');
+      chip.className = 'persona-chip';
+      if (cargas[p.nombre]) chip.classList.add('completado');
+      chip.innerHTML = `<span class="perfil-badge" style="background: ${p.color};">${p.inicial}</span>${p.nombre}`;
+      chip.onclick = () => {
+        if (cargas[p.nombre]) {
+          if (!confirm(`Ya hay una historia cargada para ${p.nombre}. ¿Querés sobrescribirla?`)) return;
+        }
+        seleccionarPersona(p);
+      };
+      selector.appendChild(chip);
+    });
+  }
+
+  function seleccionarPersona(p) {
+    personaSeleccionada = p;
+    document.getElementById('persona-actual').textContent = p.nombre;
+    document.getElementById('grupo-form').textContent = grupoActual;
+
+    if (cargas[p.nombre]) {
+      document.getElementById('campo-pasado').value = cargas[p.nombre].pasado || '';
+      document.getElementById('campo-presente').value = cargas[p.nombre].presente || '';
+      document.getElementById('campo-futuro').value = cargas[p.nombre].futuro || '';
+    } else {
+      document.getElementById('campo-pasado').value = '';
+      document.getElementById('campo-presente').value = '';
+      document.getElementById('campo-futuro').value = '';
+    }
+    contarChars('pasado');
+    contarChars('presente');
+    contarChars('futuro');
+
+    document.getElementById('pantalla-seleccion').classList.add('hide');
+    document.getElementById('pantalla-form').classList.remove('hide');
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('btn-preview').style.display = 'block';
+    document.getElementById('btn-enviar').style.display = 'none';
+  }
+
+  function contarChars(campo) {
+    const valor = document.getElementById('campo-' + campo).value;
+    const counter = document.getElementById('counter-' + campo);
+    counter.textContent = `${valor.length} / 300`;
+    counter.classList.toggle('warn', valor.length > 280);
+  }
+
+  function verPreview() {
+    const pasado = document.getElementById('campo-pasado').value.trim();
+    const presente = document.getElementById('campo-presente').value.trim();
+    const futuro = document.getElementById('campo-futuro').value.trim();
+    if (!pasado || !presente || !futuro) {
+      alert('Completá los 3 campos antes de enviar.');
+      return;
+    }
+    document.getElementById('pv-pasado').textContent = pasado;
+    document.getElementById('pv-presente').textContent = presente;
+    document.getElementById('pv-futuro').textContent = futuro;
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('btn-preview').style.display = 'none';
+    document.getElementById('btn-enviar').style.display = 'block';
+    document.getElementById('preview').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function mostrarToast(msg, error) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.toggle('error', !!error);
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+
+  async function enviarHistoria() {
+    const pasado = document.getElementById('campo-pasado').value.trim();
+    const presente = document.getElementById('campo-presente').value.trim();
+    const futuro = document.getElementById('campo-futuro').value.trim();
+
+    document.getElementById('btn-enviar').disabled = true;
+    document.getElementById('btn-enviar').textContent = 'Guardando...';
+
+    const registro = {
+      nombre: personaSeleccionada.nombre,
+      perfil: personaSeleccionada.perfil,
+      color: personaSeleccionada.color,
+      pasado, presente, futuro,
+      grupo: grupoActual,
+      escriba: escribaActual,
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      // Upsert: si ya existe (por nombre único) lo actualiza, si no lo inserta
+      const { error } = await supabaseClient
+        .from('historias')
+        .upsert(registro, { onConflict: 'nombre' });
+      if (error) throw error;
+
+      mostrarToast(`Historia de ${personaSeleccionada.nombre} guardada ✓`);
+      cargas[personaSeleccionada.nombre] = registro;
+
+      setTimeout(() => {
+        document.getElementById('btn-enviar').disabled = false;
+        document.getElementById('btn-enviar').textContent = '✓ Enviar al dashboard';
+        volverSeleccion();
+      }, 800);
+    } catch (e) {
+      console.error('Error guardando:', e);
+      mostrarToast('Error al guardar. Probá de nuevo.', true);
+      document.getElementById('btn-enviar').disabled = false;
+      document.getElementById('btn-enviar').textContent = '✓ Enviar al dashboard';
+    }
+  }
+
+  async function cargarPerfilesAsignados() {
+    try {
+      const { data, error } = await supabaseClient
+        .from('perfiles_asignados')
+        .select('*');
+      if (error) throw error;
+      (data || []).forEach(p => {
+        const idx = equipo.findIndex(e => e.nombre === p.nombre);
+        if (idx !== -1) {
+          equipo[idx].perfil = p.perfil;
+          equipo[idx].color = p.color;
+          equipo[idx].inicial = p.inicial;
+        }
+      });
+    } catch (e) {
+      console.error('Error cargando perfiles asignados:', e);
+    }
+  }
+
+  cargarPerfilesAsignados().then(() => cargarHistorias());
+</script>
+
+</body>
+</html>
