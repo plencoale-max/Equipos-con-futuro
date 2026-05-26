@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrenamiento Invisible — Dashboard 333</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --azul: #1F6DB1;
+    --naranja: #E87722;
+    --gris: #53565A;
+    --verde: #8CC63F;
+    --azul-claro: #D1E3F6;
+    --rojo: #DC3545;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: var(--gris);
+  }
+
+  /* HEADER */
+  .header {
+    background: white;
+    border-radius: 16px;
+    padding: 20px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(31,109,177,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .header-logo {
+    background: var(--azul);
+    color: white;
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .header h1 {
+    font-size: 20px;
+    color: var(--azul);
+    line-height: 1.2;
+  }
+  .header-sub {
+    font-size: 12px;
+    color: var(--gris);
+    opacity: 0.7;
+  }
+  .header-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f4faec;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--verde);
+    letter-spacing: 0.5px;
+  }
+  .live-indicator.offline {
+    background: #fafafa;
+    color: #999;
+  }
+  .live-dot {
+    width: 8px; height: 8px;
+    background: var(--verde);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  .live-indicator.offline .live-dot {
+    background: #ccc;
+    animation: none;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .badge-confidencial {
+    background: #ffe8e8;
+    color: var(--rojo);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .btn-pdf, .btn-limpiar {
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+  }
+  .btn-pdf {
+    background: var(--azul-claro);
+    color: var(--azul);
+  }
+  .btn-pdf:hover { background: #b4d4ee; }
+  .btn-pdf:disabled { opacity: 0.5; cursor: wait; }
+  .btn-limpiar {
+    background: #fff0f0;
+    color: var(--rojo);
+  }
+  .btn-limpiar:hover { background: #ffe0e0; }
+
+  /* KPIs */
+  .kpis-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: white;
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: 0 2px 10px rgba(31,109,177,0.06);
+  }
+  .kpi-num {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--azul);
+    line-height: 1;
+  }
+  .kpi-lbl {
+    font-size: 11px;
+    color: var(--gris);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 4px;
+    opacity: 0.7;
+  }
+
+  /* GRID PRINCIPAL */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 1100px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ZONA: PASADO (foto grid) */
+  .zona {
+    background: white;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 2px 12px rgba(31,109,177,0.08);
+  }
+  .zona-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #f0f4f9;
+  }
+  .zona-icon {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .zona-icon.pasado { background: var(--naranja); }
+  .zona-icon.presente { background: var(--azul); }
+  .zona-icon.futuro { background: var(--verde); }
+  .zona-titulo {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gris);
+  }
+  .zona-subtitulo {
+    font-size: 11px;
+    color: var(--gris);
+    opacity: 0.6;
+  }
+
+  .fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+    gap: 12px;
+  }
+  .foto-item {
+    text-align: center;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 10px;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+    position: relative;
+  }
+  .foto-item:hover {
+    background: #f5f9fd;
+    transform: translateY(-2px);
+  }
+  .foto-item.cargado::before {
+    content: '✓';
+    position: absolute;
+    top: 0; right: 0;
+    background: var(--verde);
+    color: white;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .foto-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: white;
+    margin: 0 auto 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  }
+  .foto-avatar-img {
+    background: #f0f0f0;
+    overflow: hidden;
+    border: 3px solid white;
+    padding: 0;
+  }
+  .foto-avatar-img img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+  .foto-nombre {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gris);
+    line-height: 1.2;
+  }
+
+  /* FEED EN VIVO */
+  .feed-item {
+    background: #fafbfc;
+    border-left: 3px solid var(--azul);
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    animation: slideIn 0.4s ease;
+  }
+  .feed-item.futuro-item {
+    border-left-color: var(--verde);
+    background: #f4faec;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .feed-item-nombre {
+    font-weight: 700;
+    color: var(--azul);
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .feed-item.futuro-item .feed-item-nombre {
+    color: var(--verde);
+  }
+  .feed-empty {
+    text-align: center;
+    color: var(--gris);
+    opacity: 0.4;
+    font-size: 12px;
+    padding: 30px 10px;
+  }
+
+  /* MODAL */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #f0f4f9;
+  }
+  .modal-foto {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 26px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .modal-foto-antigua {
+    position: relative;
+    width: 70px; height: 70px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #f0f0f0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .modal-foto-antigua img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .btn-expandir {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    background: rgba(0,0,0,0.65);
+    color: white;
+    border: none;
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-expandir:hover { background: rgba(0,0,0,0.9); }
+  .modal-titulo {
+    flex: 1;
+  }
+  .modal-titulo h3 {
+    font-size: 22px;
+    color: var(--azul);
+    margin-bottom: 4px;
+  }
+  .modal-meta {
+    font-size: 12px;
+    color: var(--gris);
+    opacity: 0.7;
+  }
+  .modal-close {
+    background: #fafafa;
+    border: none;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--gris);
+  }
+  .modal-seccion {
+    margin-bottom: 18px;
+    padding: 16px 18px;
+    border-radius: 10px;
+    background: #f0f6fb;
+    border-left: 4px solid var(--azul);
+  }
+  .modal-seccion.pasado {
+    background: #fff7ee;
+    border-left-color: var(--naranja);
+  }
+  .modal-seccion.futuro {
+    background: #f4faec;
+    border-left-color: var(--verde);
+  }
+  .modal-seccion-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    color: var(--azul);
+  }
+  .modal-seccion.pasado .modal-seccion-title { color: var(--naranja); }
+  .modal-seccion.futuro .modal-seccion-title { color: var(--verde); }
+  .modal-seccion-texto {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--gris);
+  }
+
+  /* Visor fullscreen */
+  .visor-fullscreen {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.95);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    cursor: zoom-out;
+  }
+  .visor-fullscreen.show {
+    display: flex;
+    flex-direction: column;
+  }
+  .visor-fullscreen img {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    cursor: default;
+  }
+  .visor-close {
+    position: absolute;
+    top: 20px; right: 28px;
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: none;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .visor-caption {
+    color: white;
+    font-size: 14px;
+    margin-top: 16px;
+    opacity: 0.8;
+  }
+
+  /* Modal asignar perfil */
+  .modal-asignar-bg {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-asignar-bg.show { display: flex; }
+  .modal-asignar {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 480px;
+    width: 100%;
+  }
+  .modal-asignar h3 {
+    color: var(--azul);
+    margin-bottom: 8px;
+    font-size: 20px;
+  }
+  .modal-asignar .sub {
+    font-size: 12px;
+    color: var(--gris);
+    opacity: 0.7;
+    margin-bottom: 20px;
+  }
+  .opciones-perfil {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .opcion-perfil {
+    border: 2px solid #e0e8f0;
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .opcion-perfil:hover {
+    border-color: var(--azul);
+    background: #f5f9fd;
+  }
+  .opcion-perfil-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+  }
+  .opcion-perfil-nombre {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gris);
+  }
+  .btn-cancelar {
+    width: 100%;
+    background: #f0f4f9;
+    color: var(--gris);
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Modal limpiar */
+  .modal-limpiar {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+  }
+  .modal-limpiar h3 {
+    color: var(--rojo);
+    margin-bottom: 8px;
+  }
+  .modal-limpiar p {
+    font-size: 13px;
+    color: var(--gris);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .modal-limpiar input {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid #e0e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    text-align: center;
+    font-family: inherit;
+  }
+  .btn-row { display: flex; gap: 10px; }
+  .btn-row button { flex: 1; padding: 10px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-confirmar-limpiar {
+    background: var(--rojo);
+    color: white;
+  }
+
+  /* Toast */
+  .toast-nuevo {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--verde);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 150;
+    pointer-events: none;
+  }
+  .toast-nuevo.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">333</div>
+      <div>
+        <h1>Entrenamiento Invisible</h1>
+        <div class="header-sub">Equipos con futuro · Sesión 1 · Team Building 333</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-indicator" id="live-indicator">
+        <div class="live-dot"></div>
+        <span id="live-text">CONECTANDO...</span>
+      </div>
+      <span class="badge-confidencial">CONFIDENCIAL</span>
+      <button class="btn-pdf" onclick="descargarPDF()">📄 PDF</button>
+      <button class="btn-limpiar" onclick="abrirLimpiar()">🗑 Limpiar</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis-row">
+    <div class="kpi">
+      <div class="kpi-num" id="kpi-cargadas">0</div>
+      <div class="kpi-lbl">Historias cargadas</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-num" id="kpi-personas">33</div>
+      <div class="kpi-lbl">Personas en el equipo</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-num" id="kpi-perfiles">88%</div>
+      <div class="kpi-lbl">Perfiles definidos</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-num" id="kpi-grupos">0</div>
+      <div class="kpi-lbl">Grupos activos</div>
+    </div>
+  </div>
+
+  <!-- GRID PRINCIPAL -->
+  <div class="main-grid">
+
+    <!-- ZONA PASADO -->
+    <div class="zona">
+      <div class="zona-header">
+        <div class="zona-icon pasado">◐</div>
+        <div>
+          <div class="zona-titulo">Quiénes eran</div>
+          <div class="zona-subtitulo">Foto antigua de cada persona del equipo</div>
+        </div>
+      </div>
+      <div class="fotos-grid" id="fotos-grid"></div>
+    </div>
+
+    <!-- ZONA PRESENTE -->
+    <div class="zona">
+      <div class="zona-header">
+        <div class="zona-icon presente">●</div>
+        <div>
+          <div class="zona-titulo">Qué los trajo</div>
+          <div class="zona-subtitulo">Las historias en vivo</div>
+        </div>
+      </div>
+      <div id="feed-presente">
+        <div class="feed-empty">Esperando historias...</div>
+      </div>
+    </div>
+
+    <!-- ZONA FUTURO -->
+    <div class="zona">
+      <div class="zona-header">
+        <div class="zona-icon futuro">◑</div>
+        <div>
+          <div class="zona-titulo">Qué necesitan</div>
+          <div class="zona-subtitulo">Lo que pide cada uno</div>
+        </div>
+      </div>
+      <div id="feed-futuro">
+        <div class="feed-empty">Esperando historias...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL HISTORIA -->
+  <div class="modal-bg" id="modal-bg" onclick="cerrarModal()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-foto" id="modal-foto">N</div>
+        <div class="modal-titulo">
+          <h3 id="modal-nombre">Nombre</h3>
+          <div class="modal-meta" id="modal-perfil">Perfil</div>
+        </div>
+        <div class="modal-foto-antigua" id="modal-foto-antigua" style="display:none;">
+          <img id="modal-foto-img" src="" alt="Foto antigua" />
+          <button class="btn-expandir" onclick="expandirFoto()">⤢</button>
+        </div>
+        <button class="modal-close" onclick="cerrarModal()">×</button>
+      </div>
+      <div class="modal-seccion pasado">
+        <div class="modal-seccion-title">◐ Quién era</div>
+        <div class="modal-seccion-texto" id="modal-pasado"></div>
+      </div>
+      <div class="modal-seccion">
+        <div class="modal-seccion-title">● Qué la/lo trajo hasta acá</div>
+        <div class="modal-seccion-texto" id="modal-presente"></div>
+      </div>
+      <div class="modal-seccion futuro">
+        <div class="modal-seccion-title">◑ Qué necesita</div>
+        <div class="modal-seccion-texto" id="modal-futuro"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISOR FULLSCREEN -->
+  <div class="visor-fullscreen" id="visor-fullscreen" onclick="cerrarVisor()">
+    <button class="visor-close" onclick="cerrarVisor()">×</button>
+    <img id="visor-img" src="" alt="" onclick="event.stopPropagation()" />
+    <div class="visor-caption" id="visor-caption"></div>
+  </div>
+
+  <!-- MODAL ASIGNAR PERFIL -->
+  <div class="modal-asignar-bg" id="modal-asignar-bg" onclick="cerrarAsignar()">
+    <div class="modal-asignar" onclick="event.stopPropagation()">
+      <h3>Asignar perfil a <span id="asignar-nombre"></span></h3>
+      <div class="sub">Seleccioná el perfil según el cuestionario de Autoconocimiento.</div>
+      <div class="opciones-perfil">
+        <div class="opcion-perfil" onclick="asignarPerfil('Promotor', '#E91E63', 'P')">
+          <div class="opcion-perfil-avatar" style="background:#E91E63">P</div>
+          <div class="opcion-perfil-nombre">Promotor</div>
+        </div>
+        <div class="opcion-perfil" onclick="asignarPerfil('Facilitador', '#7E57C2', 'F')">
+          <div class="opcion-perfil-avatar" style="background:#7E57C2">F</div>
+          <div class="opcion-perfil-nombre">Facilitador</div>
+        </div>
+        <div class="opcion-perfil" onclick="asignarPerfil('Analítico', '#29B6F6', 'A')">
+          <div class="opcion-perfil-avatar" style="background:#29B6F6">A</div>
+          <div class="opcion-perfil-nombre">Analítico</div>
+        </div>
+        <div class="opcion-perfil" onclick="asignarPerfil('Controlador', '#8CC63F', 'C')">
+          <div class="opcion-perfil-avatar" style="background:#8CC63F">C</div>
+          <div class="opcion-perfil-nombre">Controlador</div>
+        </div>
+      </div>
+      <button class="btn-cancelar" onclick="cerrarAsignar()">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- MODAL LIMPIAR -->
+  <div class="modal-asignar-bg" id="modal-limpiar-bg" onclick="cerrarLimpiar()">
+    <div class="modal-limpiar" onclick="event.stopPropagation()">
+      <h3>🗑 Limpiar tablero</h3>
+      <p>Esta acción <strong>elimina todas las historias cargadas</strong>. No se puede deshacer. Para confirmar, ingresá la clave:</p>
+      <input type="password" id="clave-limpiar" placeholder="Clave" />
+      <div class="btn-row">
+        <button class="btn-cancelar" onclick="cerrarLimpiar()">Cancelar</button>
+        <button class="btn-confirmar-limpiar" onclick="confirmarLimpiar()">Sí, limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-nuevo" id="toast-nuevo"></div>
+
+<script>
+  // === CONFIG SUPABASE ===
+  const SUPABASE_URL = 'https://bwirfscpncqnzpbuflax.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_AS9nbNcBc2vzfUt4hx6QgA_G8az2d_Y';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // === EQUIPO 333 ===
+  const equipoBase = [
+    { nombre: 'Alejo', perfil: 'Promotor', color: '#E91E63', inicial: 'P' },
+    { nombre: 'Nazly', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Ana', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Nicole', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Patricia', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Flor', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Susana', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Coqui', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Moni S.', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'David', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Marina', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Jonatas', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Carlos', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Natllely', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Soco', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Yoli', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Dani', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Pipe', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Juli', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Solange', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Benja', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Bruno', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Moni M.', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Clemen', perfil: 'Facilitador', color: '#7E57C2', inicial: 'F' },
+    { nombre: 'Rei', perfil: 'Analítico', color: '#29B6F6', inicial: 'A' },
+    { nombre: 'Adri', perfil: 'Controlador', color: '#8CC63F', inicial: 'C' },
+    { nombre: 'Laíza', perfil: 'Controlador', color: '#8CC63F', inicial: 'C' },
+    { nombre: 'Roberta', perfil: 'Controlador', color: '#8CC63F', inicial: 'C' },
+    { nombre: 'Juanpa', perfil: 'Controlador', color: '#8CC63F', inicial: 'C' },
+    { nombre: 'Nazarena', perfil: 'Pendiente', color: '#9E9E9E', inicial: '?' },
+    { nombre: 'Lucas', perfil: 'Pendiente', color: '#9E9E9E', inicial: '?' },
+    { nombre: 'Luciano', perfil: 'Pendiente', color: '#9E9E9E', inicial: '?' },
+    { nombre: 'Tamara', perfil: 'Pendiente', color: '#9E9E9E', inicial: '?' }
+  ];
+  let equipo = JSON.parse(JSON.stringify(equipoBase));
+  let cargas = {};
+  let personaParaAsignar = null;
+
+  // === RENDER ===
+  function renderGrid() {
+    const grid = document.getElementById('fotos-grid');
+    grid.innerHTML = '';
+    equipo.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'foto-item';
+      item.title = `${p.nombre} · ${p.perfil}`;
+      const cargaActual = cargas[p.nombre];
+      if (cargaActual) item.classList.add('cargado');
+
+      let avatarHTML;
+      if (cargaActual && cargaActual.foto_url) {
+        avatarHTML = `<div class="foto-avatar foto-avatar-img"><img src="${cargaActual.foto_url}" alt="${p.nombre}" /></div>`;
+      } else {
+        avatarHTML = `<div class="foto-avatar" style="background:${p.color};">${p.inicial}</div>`;
+      }
+      item.innerHTML = avatarHTML + `<div class="foto-nombre">${p.nombre}</div>`;
+      item.onclick = () => abrirModal(p);
+      grid.appendChild(item);
+    });
+  }
+
+  function renderFeeds() {
+    const fp = document.getElementById('feed-presente');
+    const ff = document.getElementById('feed-futuro');
+    const arr = Object.values(cargas).sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+    if (arr.length === 0) {
+      fp.innerHTML = '<div class="feed-empty">Esperando historias...</div>';
+      ff.innerHTML = '<div class="feed-empty">Esperando historias...</div>';
+      return;
+    }
+    fp.innerHTML = arr.filter(c => c.presente).slice(0, 8).map(c => `
+      <div class="feed-item">
+        <div class="feed-item-nombre">${c.nombre}</div>
+        <div>${escaparHTML(c.presente)}</div>
+      </div>
+    `).join('') || '<div class="feed-empty">Esperando historias...</div>';
+    ff.innerHTML = arr.filter(c => c.futuro).slice(0, 8).map(c => `
+      <div class="feed-item futuro-item">
+        <div class="feed-item-nombre">${c.nombre}</div>
+        <div>${escaparHTML(c.futuro)}</div>
+      </div>
+    `).join('') || '<div class="feed-empty">Esperando historias...</div>';
+  }
+
+  function renderKPIs() {
+    const cantidad = Object.keys(cargas).length;
+    document.getElementById('kpi-cargadas').textContent = cantidad;
+    const grupos = new Set(Object.values(cargas).map(c => c.grupo));
+    document.getElementById('kpi-grupos').textContent = grupos.size;
+
+    // % perfiles definidos (los que no son "Pendiente")
+    const definidos = equipo.filter(p => p.perfil !== 'Pendiente').length;
+    const pct = Math.round((definidos / equipo.length) * 100);
+    const kpiPerfiles = document.getElementById('kpi-perfiles');
+    kpiPerfiles.textContent = pct + '%';
+    // Verde si está al 100%, azul si parcial
+    if (pct === 100) {
+      kpiPerfiles.style.color = '#8CC63F';
+    } else {
+      kpiPerfiles.style.color = '';
+    }
+  }
+
+  function actualizarTodo() {
+    renderGrid();
+    renderFeeds();
+    renderKPIs();
+  }
+
+  function escaparHTML(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // === MODAL ===
+  function abrirModal(persona) {
+    if (persona.perfil === 'Pendiente') {
+      abrirAsignar(persona);
+      return;
+    }
+    if (!cargas[persona.nombre]) return;
+    const data = cargas[persona.nombre];
+    document.getElementById('modal-foto').textContent = persona.nombre.charAt(0);
+    document.getElementById('modal-foto').style.background = `linear-gradient(135deg, ${persona.color}88, ${persona.color})`;
+    document.getElementById('modal-nombre').textContent = persona.nombre;
+    document.getElementById('modal-perfil').textContent = `Perfil: ${persona.perfil} · Grupo ${data.grupo}`;
+    document.getElementById('modal-pasado').textContent = data.pasado || '—';
+    document.getElementById('modal-presente').textContent = data.presente || '—';
+    document.getElementById('modal-futuro').textContent = data.futuro || '—';
+    const fotoCont = document.getElementById('modal-foto-antigua');
+    if (data.foto_url) {
+      document.getElementById('modal-foto-img').src = data.foto_url;
+      document.getElementById('modal-foto-img').dataset.nombre = persona.nombre;
+      fotoCont.style.display = 'block';
+    } else {
+      fotoCont.style.display = 'none';
+    }
+    document.getElementById('modal-bg').classList.add('show');
+  }
+  function cerrarModal() { document.getElementById('modal-bg').classList.remove('show'); }
+
+  function expandirFoto() {
+    const img = document.getElementById('modal-foto-img');
+    if (!img || !img.src) return;
+    document.getElementById('visor-img').src = img.src;
+    document.getElementById('visor-caption').textContent = img.dataset.nombre || '';
+    document.getElementById('visor-fullscreen').classList.add('show');
+  }
+  function cerrarVisor() { document.getElementById('visor-fullscreen').classList.remove('show'); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { cerrarVisor(); cerrarModal(); }});
+
+  // === ASIGNAR PERFIL ===
+  function abrirAsignar(p) {
+    personaParaAsignar = p;
+    document.getElementById('asignar-nombre').textContent = p.nombre;
+    document.getElementById('modal-asignar-bg').classList.add('show');
+  }
+  function cerrarAsignar() {
+    document.getElementById('modal-asignar-bg').classList.remove('show');
+    personaParaAsignar = null;
+  }
+  async function asignarPerfil(perfil, color, inicial) {
+    if (!personaParaAsignar) return;
+    const nombre = personaParaAsignar.nombre;
+    try {
+      const { error } = await supabaseClient
+        .from('perfiles_asignados')
+        .upsert({ nombre, perfil, color, inicial, actualizado: new Date().toISOString() }, { onConflict: 'nombre' });
+      if (error) throw error;
+      const idx = equipo.findIndex(p => p.nombre === nombre);
+      if (idx !== -1) {
+        equipo[idx].perfil = perfil;
+        equipo[idx].color = color;
+        equipo[idx].inicial = inicial;
+      }
+      mostrarToast(`✓ ${nombre} asignado como ${perfil}`);
+      actualizarTodo();
+      cerrarAsignar();
+    } catch (e) {
+      alert('Error al asignar: ' + (e.message || e));
+    }
+  }
+
+  // === LIMPIAR ===
+  function abrirLimpiar() {
+    document.getElementById('clave-limpiar').value = '';
+    document.getElementById('modal-limpiar-bg').classList.add('show');
+    setTimeout(() => document.getElementById('clave-limpiar').focus(), 100);
+  }
+  function cerrarLimpiar() { document.getElementById('modal-limpiar-bg').classList.remove('show'); }
+  async function confirmarLimpiar() {
+    const clave = document.getElementById('clave-limpiar').value;
+    if (clave !== '333') { alert('Clave incorrecta'); return; }
+    try {
+      const { error } = await supabaseClient.from('historias').delete().neq('nombre', '');
+      if (error) throw error;
+      cargas = {};
+      actualizarTodo();
+      cerrarLimpiar();
+      mostrarToast('✓ Tablero limpio');
+    } catch (e) {
+      alert('Error al limpiar: ' + (e.message || e));
+    }
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.getElementById('modal-limpiar-bg').classList.contains('show')) {
+      confirmarLimpiar();
+    }
+  });
+
+  // === PDF ===
+  async function descargarPDF() {
+    const btn = document.querySelector('.btn-pdf');
+    const cantidad = Object.keys(cargas).length;
+    if (cantidad === 0) { alert('No hay historias para exportar.'); return; }
+    btn.disabled = true;
+    btn.textContent = '⏳ Generando...';
+    try {
+      const ahora = new Date();
+      const fechaStr = ahora.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+      const arr = Object.values(cargas).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      let html = `<div style="padding:50px; font-family:Helvetica,Arial,sans-serif;">
+        <div style="text-align:center; padding:80px 0 40px;">
+          <div style="font-size:48px; font-weight:700; color:#1F6DB1; letter-spacing:4px; margin-bottom:16px;">3·3·3</div>
+          <h1 style="color:#1F6DB1; font-size:32px; margin-bottom:12px;">Entrenamiento Invisible</h1>
+          <div style="font-size:14px; color:#666; margin-bottom:30px;">Equipos con futuro · Sesión 1 · Team Building 333</div>
+          <div style="background:#f5f9fd; padding:24px; border-radius:12px; max-width:400px; margin:0 auto; text-align:left; border-left:4px solid #1F6DB1;">
+            <div style="padding:6px 0;"><strong>Fecha:</strong> ${fechaStr}</div>
+            <div style="padding:6px 0;"><strong>Historias:</strong> ${cantidad} de ${equipo.length}</div>
+            <div style="padding:6px 0;"><strong>Generado por:</strong> RRHH 333 Corporate</div>
+          </div>
+          <div style="margin-top:40px; background:#ffe8e8; color:#c0392b; padding:10px 18px; border-radius:8px; display:inline-block; font-weight:700; font-size:12px;">CONFIDENCIAL · USO INTERNO RRHH</div>
+        </div>
+      </div>`;
+
+      arr.forEach(c => {
+        html += `<div style="padding:40px; page-break-before:always; font-family:Helvetica,Arial,sans-serif;">
+          <div style="display:flex; align-items:center; gap:18px; margin-bottom:24px; padding-bottom:18px; border-bottom:2px solid #e0e0e0;">
+            <div style="width:60px; height:60px; border-radius:50%; background:${c.color}; color:white; font-size:26px; font-weight:700; display:flex; align-items:center; justify-content:center;">${c.nombre.charAt(0)}</div>
+            <div>
+              <h2 style="font-size:22px; color:#1F6DB1; margin:0 0 4px;">${c.nombre}</h2>
+              <div style="font-size:12px; color:#666;">Perfil: <strong>${c.perfil}</strong> · Grupo <strong>${c.grupo}</strong></div>
+            </div>
+          </div>
+          <div style="margin-bottom:16px; padding:16px 20px; border-radius:10px; background:#fff7ee; border-left:4px solid #E87722;">
+            <div style="font-size:11px; font-weight:700; color:#E87722; text-transform:uppercase; margin-bottom:8px;">Quién era</div>
+            <div style="font-size:13px; color:#333; line-height:1.6;">${escaparHTML(c.pasado || '—')}</div>
+          </div>
+          <div style="margin-bottom:16px; padding:16px 20px; border-radius:10px; background:#f0f6fb; border-left:4px solid #1F6DB1;">
+            <div style="font-size:11px; font-weight:700; color:#1F6DB1; text-transform:uppercase; margin-bottom:8px;">Qué la/lo trajo</div>
+            <div style="font-size:13px; color:#333; line-height:1.6;">${escaparHTML(c.presente || '—')}</div>
+          </div>
+          <div style="margin-bottom:16px; padding:16px 20px; border-radius:10px; background:#f4faec; border-left:4px solid #8CC63F;">
+            <div style="font-size:11px; font-weight:700; color:#8CC63F; text-transform:uppercase; margin-bottom:8px;">Qué necesita</div>
+            <div style="font-size:13px; color:#333; line-height:1.6;">${escaparHTML(c.futuro || '—')}</div>
+          </div>
+        </div>`;
+      });
+
+      const cont = document.createElement('div');
+      cont.style.cssText = 'position:fixed; left:0; top:0; width:800px; background:white; z-index:-1; opacity:0;';
+      cont.innerHTML = html;
+      document.body.appendChild(cont);
+      await new Promise(r => setTimeout(r, 300));
+
+      const fechaArchivo = ahora.toISOString().split('T')[0];
+      await html2pdf().set({
+        margin: 0,
+        filename: `Entrenamiento-Invisible_${fechaArchivo}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(cont).save();
+
+      document.body.removeChild(cont);
+      mostrarToast('✓ PDF descargado');
+    } catch (e) {
+      alert('Error generando PDF: ' + (e.message || e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '📄 PDF';
+    }
+  }
+
+  // === TOAST ===
+  function mostrarToast(msg) {
+    const t = document.getElementById('toast-nuevo');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // === CARGA DE DATOS ===
+  async function cargarPerfilesAsignados() {
+    try {
+      const { data, error } = await supabaseClient.from('perfiles_asignados').select('*');
+      if (error) throw error;
+      (data || []).forEach(asig => {
+        const idx = equipo.findIndex(p => p.nombre === asig.nombre);
+        if (idx !== -1) {
+          equipo[idx].perfil = asig.perfil;
+          equipo[idx].color = asig.color;
+          equipo[idx].inicial = asig.inicial;
+        }
+      });
+    } catch (e) { console.warn('Perfiles asignados:', e.message); }
+  }
+
+  async function cargarHistorias() {
+    try {
+      const { data, error } = await supabaseClient.from('historias').select('*');
+      if (error) throw error;
+      cargas = {};
+      (data || []).forEach(r => { cargas[r.nombre] = r; });
+      const li = document.getElementById('live-indicator');
+      li.classList.remove('offline');
+      document.getElementById('live-text').textContent = 'EN VIVO';
+    } catch (e) {
+      const li = document.getElementById('live-indicator');
+      li.classList.add('offline');
+      document.getElementById('live-text').textContent = 'SIN CONEXIÓN';
+      console.error('Error:', e);
+    }
+    actualizarTodo();
+  }
+
+  // === REALTIME ===
+  function suscribirRealtime() {
+    supabaseClient
+      .channel('historias-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'historias' }, payload => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          cargas[payload.new.nombre] = payload.new;
+          actualizarTodo();
+          mostrarToast(`📝 Nueva historia: ${payload.new.nombre}`);
+        } else if (payload.eventType === 'DELETE') {
+          delete cargas[payload.old.nombre];
+          actualizarTodo();
+        }
+      })
+      .subscribe();
+  }
+
+  // === INIT ===
+  (async function init() {
+    await cargarPerfilesAsignados();
+    await cargarHistorias();
+    suscribirRealtime();
+  })();
+  setInterval(cargarHistorias, 30000);
+</script>
+
+</body>
+</html>
