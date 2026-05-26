@@ -72,3 +72,4 @@ Si el día de la sesión algo no funciona:
 - Realtime: activado en tabla `historias`
 - Frontend: HTML puro + JS, hosteado en GitHub Pages
 - Sin dependencias adicionales más allá del CDN de Supabase JS
+<!-- deploy refresh -->
